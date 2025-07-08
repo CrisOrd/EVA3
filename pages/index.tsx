@@ -14,7 +14,7 @@ export default function Home() {
   const [evento, setEvento] = useState<Evento>(initialStateEvento);
   const [eventos, setEventos] = useState<Evento[]>([]);
   
-
+// Tuve problemas en implementar el localStorage afuera del useEffect, por lo que lo hice de esta manera
   useEffect(() => {
     const miStorage = window.localStorage
     let eventosGuardados = miStorage.getItem("eventos")
@@ -32,6 +32,25 @@ export default function Home() {
     const nuevosEventos = [...eventos, evento]
     localStorage.setItem("eventos", JSON.stringify([...eventos, evento]))
     setEventos(nuevosEventos)
+    if (evento.nombre == ""){
+      alert("El nombre del evento debe tener al menos 3 caracteres")
+    }
+    if (evento.costo == 0 ||evento.costo < 0 || evento.costo > 100000000) {
+      alert("El costo del evento debe estar entre 1 y 100000000")
+    }
+    if (evento.tipo == "Seleccione el Tipo de Evento") {
+      alert("Debe seleccionar un tipo de evento")
+    }
+    if (evento.descripcion == "") {
+      alert("La descripción del evento no puede estar vacía")
+    }
+    if (evento.fecha == "") {
+      alert("La fecha del evento no puede estar vacía")
+    }
+    else {
+      alert("Evento registrado correctamente")
+      setEvento(initialStateEvento)
+    }
   }
 
   
@@ -53,7 +72,7 @@ export default function Home() {
 
       <label>Costo del Evento </label><br />
       <input 
-        name ="coste"
+        name ="costo"
         type="number" 
         min = "0"
         max = "100000000"
@@ -100,5 +119,5 @@ export default function Home() {
 
     </form>
     
-    );
+    )
   }
