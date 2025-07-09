@@ -35,7 +35,7 @@ export default function Home() {
     return;
   }
   
-  if (evento.costo === 0 || evento.costo < 0 || evento.costo > 100000000) {
+  if (evento.costo == 0 || evento.costo < 0 || evento.costo > 100000000 || evento.costo === undefined) {
     alert("El costo del evento debe estar entre 1 y 100000000 y no puede ser cero")
     return;
   }
