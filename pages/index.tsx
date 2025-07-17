@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react';
 import { Evento } from './Interfaces/IEvento';
+import { registroEvento } from './Firebase/Promesa';
 
 const initialStateEvento: Evento = {
   nombre: '',
@@ -28,31 +29,40 @@ export default function Home() {
     setEvento({ ...evento, [name]: value })
   }
 
-  const handleRegistro = () => {
-    const nuevosEventos = [...eventos, evento]
-    localStorage.setItem("eventos", JSON.stringify([...eventos, evento]))
-    setEventos(nuevosEventos)
-    if (evento.nombre == ""){
-      alert("El nombre del evento debe tener al menos 3 caracteres")
-    }
-    if (evento.costo == 0 ||evento.costo < 0 || evento.costo > 100000000) {
-      alert("El costo del evento debe estar entre 1 y 100000000")
-    }
-    if (evento.tipo == "Seleccione el Tipo de Evento") {
-      alert("Debe seleccionar un tipo de evento")
-    }
-    if (evento.descripcion == "") {
-      alert("La descripción del evento no puede estar vacía")
-    }
-    if (evento.fecha == "") {
-      alert("La fecha del evento no puede estar vacía")
-    }
-    else {
-      alert("Evento registrado correctamente")
-      setEvento(initialStateEvento)
-    }
+  const handleRegistro = async () => {
+  // Validaciones
+  if (evento.nombre.length < 3){
+    alert("El nombre del evento debe tener al menos 3 caracteres");
+    return;
+  }
+  if (evento.costo <= 0 || evento.costo > 100000000) {
+    alert("El costo del evento debe estar entre 1 y 100000000");
+    return;
+  }
+  if (evento.tipo === "" || evento.tipo === "Seleccione el Tipo de Evento") {
+    alert("Debe seleccionar un tipo de evento");
+    return;
+  }
+  if (evento.descripcion === "") {
+    alert("La descripción del evento no puede estar vacía");
+    return;
+  }
+  if (evento.fecha === "") {
+    alert("La fecha del evento no puede estar vacía");
+    return;
   }
 
+  try {
+    await registroEvento(evento);
+    alert("Evento registrado en Firebase");
+    setEvento(initialStateEvento);
+    setEventos([...eventos, evento]);
+    localStorage.setItem("eventos", JSON.stringify([...eventos, evento]));
+  } catch (error) {
+    alert("Error al registrar el evento en Firebase");
+    console.error(error);
+  }
+}
   
   
   return (
