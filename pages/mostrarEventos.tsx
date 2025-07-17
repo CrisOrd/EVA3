@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { Evento } from './Interfaces/IEvento'
+import { collection, getDocs, query, orderBy } from "firebase/firestore"
+import { db } from "./Firebase/Conexion"
 
 interface Props {
   saludo: string,
@@ -12,11 +14,22 @@ export const MostrarEventos = (props: Props) => {
   const [eventos, setEventos] = useState<Evento[]>([])
 
   useEffect(() => {
-    let listadoStr = localStorage.getItem("eventos")
-    if (listadoStr != null) {
-      let listado = JSON.parse(listadoStr)
-      setEventos(listado)
+    const fetchEventos = async () => {
+      const q = query(collection(db, "Eventos"), orderBy("timestamp"))
+      const querySnapshot = await getDocs(q)
+      const eventosFirebase: Evento[] = querySnapshot.docs.map(doc => {
+        const data = doc.data()
+        return {
+          nombre: data.nombreEvento,
+          costo: data.costoEvento,
+          tipo: data.tipoEvento,
+          descripcion: data.descripcionEvento,
+          fecha: data.fechaEvento
+        }
+      })
+      setEventos(eventosFirebase)
     }
+    fetchEventos()
   }, [])
   const editarEvento = (index: number) => {
     props.editarEvento(index)
@@ -42,11 +55,10 @@ export const MostrarEventos = (props: Props) => {
         <thead>
           <tr>
             <th>Nombre</th>
-            <th>Tipo</th>
-            <th>Costo</th>
-            <th>Fecha</th>
-            <th>Descripción</th>
-            <th>Acción</th>
+            <th>Costo del Evento</th> 
+            <th>Tipo de Evento</th>
+            <th>Descripción del Evento</th>
+            <th>Fecha de Evento</th>
           </tr>
         </thead>
         <tbody>
@@ -54,10 +66,11 @@ export const MostrarEventos = (props: Props) => {
             return (
               <tr key={index}>
                 <td>{e.nombre}</td>
-                <td>{e.tipo}</td>
                 <td>${e.costo}</td>
-                <td>{e.fecha}</td>
+                <td>{e.tipo}</td>
                 <td>{e.descripcion}</td>
+                <td>{e.fecha}</td>
+                
                 <td>
                   <button onClick={() => editarEvento(index)}>Editar Evento</button>
                   <button onClick={() => eliminarEvento(index)}>Eliminar Evento</button>
