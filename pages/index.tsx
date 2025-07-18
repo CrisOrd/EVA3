@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react';
 import { Evento } from './Interfaces/IEvento';
-import { registroEvento } from './Firebase/Promesa';
+import { registroEvento, actualizarEvento } from './Firebase/Promesa';
 import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import { db } from "./Firebase/Conexion";
 
@@ -18,6 +18,8 @@ export default function Home() {
   const [eventos, setEventos] = useState<Evento[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [editando, setEditando] = useState(false);
+  const [eventoEditandoId, setEventoEditandoId] = useState<string | null>(null);
   
   const fetchEventos = async () => {
     try {
@@ -27,17 +29,19 @@ export default function Home() {
       try {
         q = query(collection(db, "Eventos"), orderBy("timestamp", "desc"));
       } catch (orderError) {
-        console.log("No se puede ordenar por timestamp, usando consulta simple");
+        console.log("No se pudo ordenar por timestamp, usando consulta simple.");
         q = query(collection(db, "Eventos"));
       }
-      
+
       const querySnapshot = await getDocs(q);
       console.log("Documentos encontrados:", querySnapshot.docs.length);
-      
-      const eventosFirebase: Evento[] = querySnapshot.docs.map(doc => {
+
+      const eventosFirebase = querySnapshot.docs.map(doc => {
         const data = doc.data();
-        console.log("Datos del documento:", data); // Para debug
+        console.log("Datos del documento:", data);
+
         return {
+          id: doc.id,
           nombre: data.nombreEvento || '',
           costo: Number(data.costoEvento) || 0,
           tipo: data.tipoEvento || '',
@@ -45,12 +49,12 @@ export default function Home() {
           fecha: data.fechaEvento || ''
         };
       });
-      
+
       setEventos(eventosFirebase);
       console.log("Eventos procesados:", eventosFirebase);
     } catch (error) {
       console.error("Error al cargar eventos:", error);
-      setError("Error al cargar los eventos desde Firebase");
+      setError("Error al cargar los eventos desde Firebase.");
     } finally {
       setLoading(false);
     }
@@ -88,20 +92,50 @@ export default function Home() {
     }
 
     try {
-      await registroEvento(evento);
-      alert("Evento registrado en Firebase");
+      if (editando && eventoEditandoId) {
+        // Actualizar evento existente
+        await actualizarEvento(eventoEditandoId, evento);
+        alert("Evento actualizado correctamente");
+        setEditando(false);
+        setEventoEditandoId(null);
+      } else {
+        // Registrar nuevo evento
+        await registroEvento(evento);
+        alert("Evento registrado en Firebase");
+      }
+      
       setEvento(initialStateEvento);
-      await fetchEventos(); 
+      await fetchEventos(); // Recargar la lista de eventos
     } catch (error) {
-      alert("Error al registrar el evento en Firebase");
+      alert(editando ? "Error al actualizar el evento" : "Error al registrar el evento en Firebase");
       console.error(error);
     }
   }
 
+  const handleEditar = (eventoAEditar: Evento) => {
+    setEvento({
+      nombre: eventoAEditar.nombre,
+      costo: eventoAEditar.costo,
+      tipo: eventoAEditar.tipo,
+      descripcion: eventoAEditar.descripcion,
+      fecha: eventoAEditar.fecha
+    });
+    setEditando(true);
+    setEventoEditandoId(eventoAEditar.id || null);
+  }
+
+  const handleCancelarEdicion = () => {
+    setEvento(initialStateEvento);
+    setEditando(false);
+    setEventoEditandoId(null);
+  }
+
+
+
   return (
     <div>
       <form>
-        <h1>Registro de Eventos</h1>
+        <h1>{editando ? 'Editar Evento' : 'Registro de Eventos'}</h1>
         <br />
         <label>Nombre del Evento </label><br />
         <input
@@ -162,8 +196,17 @@ export default function Home() {
         /><br />
         <span></span>
 
-        <button type="button" onClick={handleRegistro}>Registrar Evento</button>
+        <button type="button" onClick={handleRegistro}>
+          {editando ? 'Actualizar Evento' : 'Registrar Evento'}
+        </button>
+        
+        {editando && (
+          <button type="button" onClick={handleCancelarEdicion}>
+            Cancelar
+          </button>
+        )}
       </form>
+      
       <h2>Eventos Registrados</h2>
       
       {loading && <p>Cargando eventos...</p>}
@@ -183,16 +226,20 @@ export default function Home() {
               <th>Tipo de Evento</th>
               <th>Descripción del Evento</th>
               <th>Fecha del Evento</th>
+              <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
             {eventos.map((e, index) => (
-              <tr key={index}>
+              <tr key={e.id || index}>
                 <td>{e.nombre}</td>
                 <td>${e.costo}</td>
                 <td>{e.tipo}</td> 
                 <td>{e.descripcion}</td>
                 <td>{e.fecha}</td>
+                <td>
+                  <button onClick={() => handleEditar(e)}>Editar</button>
+                </td>
               </tr>
             ))}
           </tbody>

@@ -1,7 +1,7 @@
+import { db } from "./Firebase/Conexion"
 import React, { useEffect, useState } from 'react'
 import { Evento } from './Interfaces/IEvento'
 import { collection, getDocs, query, orderBy } from "firebase/firestore"
-import { db } from "./Firebase/Conexion"
 
 interface Props {
   saludo: string,
@@ -10,77 +10,119 @@ interface Props {
   setEventos: (eventos: Evento[]) => void,
   editarEvento: (index: number) => void 
 }
+
 export const MostrarEventos = (props: Props) => {
   const [eventos, setEventos] = useState<Evento[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    const fetchEventos = async () => {
-      const q = query(collection(db, "Eventos"), orderBy("timestamp"))
+  const fetchEventos = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      let q;
+      try {
+        q = query(collection(db, "Eventos"), orderBy("timestamp", "desc"))
+      } catch (orderError) {
+        console.log("No se pudo ordenar por timestamp, usando consulta simple.")
+        q = query(collection(db, "Eventos"))
+      }
+      
       const querySnapshot = await getDocs(q)
       const eventosFirebase: Evento[] = querySnapshot.docs.map(doc => {
         const data = doc.data()
         return {
-          nombre: data.nombreEvento,
-          costo: data.costoEvento,
-          tipo: data.tipoEvento,
-          descripcion: data.descripcionEvento,
-          fecha: data.fechaEvento
+          id: doc.id,
+          nombre: data.nombreEvento || '',
+          costo: Number(data.costoEvento) || 0,
+          tipo: data.tipoEvento || '',
+          descripcion: data.descripcionEvento || '',
+          fecha: data.fechaEvento || ''
         }
       })
+      
       setEventos(eventosFirebase)
+      props.setEventos(eventosFirebase)
+    } catch (error) {
+      console.error("Error al cargar eventos:", error)
+      setError("Error al cargar los eventos desde Firebase.")
+    } finally {
+      setLoading(false)
     }
+  }
+
+  useEffect(() => {
     fetchEventos()
   }, [])
-  const editarEvento = (index: number) => {
+
+  const handleEditar = (evento: Evento, index: number) => {
+    props.traerEvento(evento)
     props.editarEvento(index)
   }
 
-  const eliminarEvento = (index: number) => {
-    const eventoAEliminar = eventos[index];
-    const confirmacion = confirm(`¿Estás seguro de que quieres eliminar el evento "${eventoAEliminar.nombre}"?`);
-    
-    if (confirmacion) {
-      const nuevosEventos = eventos.filter((_, i) => i !== index)
-      setEventos(nuevosEventos)
-      props.setEventos(nuevosEventos)
-      localStorage.setItem("eventos", JSON.stringify(nuevosEventos))
-      alert("Evento eliminado correctamente");
-    }
+  if (loading) {
+    return (
+      <div>
+        <h1>{props.saludo}</h1>
+        <p>Cargando eventos...</p>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div>
+        <h1>{props.saludo}</h1>
+        <p style={{color: 'red'}}>{error}</p>
+        <button onClick={fetchEventos}>Reintentar</button>
+      </div>
+    )
   }
 
   return (
-    <>
+    <div>
       <h1>{props.saludo}</h1>
-      <table>
-        <thead>
-          <tr>
-            <th>Nombre</th>
-            <th>Costo del Evento</th> 
-            <th>Tipo de Evento</th>
-            <th>Descripción del Evento</th>
-            <th>Fecha de Evento</th>
-          </tr>
-        </thead>
-        <tbody>
-          {eventos.map((e, index) => {
-            return (
-              <tr key={index}>
-                <td>{e.nombre}</td>
-                <td>${e.costo}</td>
-                <td>{e.tipo}</td>
-                <td>{e.descripcion}</td>
-                <td>{e.fecha}</td>
-                
-                <td>
-                  <button onClick={() => editarEvento(index)}>Editar Evento</button>
-                  <button onClick={() => eliminarEvento(index)}>Eliminar Evento</button>
-                </td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
-    </>
+      
+      {eventos.length === 0 ? (
+        <p>No hay eventos registrados.</p>
+      ) : (
+        <table>
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Costo del Evento</th> 
+              <th>Tipo de Evento</th>
+              <th>Descripción del Evento</th>
+              <th>Fecha de Evento</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {eventos.map((e, index) => {
+              return (
+                <tr key={e.id || index}>
+                  <td>{e.nombre}</td>
+                  <td>${e.costo}</td>
+                  <td>{e.tipo}</td>
+                  <td>{e.descripcion}</td>
+                  <td>{e.fecha}</td>
+                  <td>
+                    <button onClick={() => handleEditar(e, index)}>
+                      Editar Evento
+                    </button>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      )}
+      
+      <button onClick={fetchEventos} disabled={loading}>
+        {loading ? 'Cargando...' : 'Recargar Eventos'}
+      </button>
+    </div>
   )
 }
 
