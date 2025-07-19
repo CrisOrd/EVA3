@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react';
 import { Evento } from './Interfaces/IEvento';
-import { registroEvento, actualizarEvento } from './Firebase/Promesa';
+import { registroEvento, actualizarEvento, eliminarEvento } from './Firebase/Promesa';
 import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import { db } from "./Firebase/Conexion";
 
@@ -20,6 +20,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [editando, setEditando] = useState(false);
   const [eventoEditandoId, setEventoEditandoId] = useState<string | null>(null);
+  const [errores, setErrores] = useState<{[key: string]: string}>({});
   
   const fetchEventos = async () => {
     try {
@@ -66,46 +67,57 @@ export default function Home() {
 
   const handleEvento = (name: string, value: string) => {
     setEvento({ ...evento, [name]: value });
+    
+    let nuevoError = "";
+    
+    if (name === "nombre" && value.length < 3) {
+      nuevoError = "El nombre debe tener al menos 3 caracteres";
+
+    } else if (name == "costo" && (Number(value) <= 0 || Number(value) > 100000000)) {
+      nuevoError = "El costo debe estar entre 1 y 100000000";
+
+    } else if (name == "tipo" && (value == "" || value == "Seleccione el Tipo de Evento")) {
+      nuevoError = "Debe seleccionar un tipo de evento";
+
+    } else if (name == "descripcion" && value == "") {
+      nuevoError = "La descripción no puede estar vacía";
+
+    } else if (name == "fecha" && value == "") {
+      nuevoError = "La fecha no puede estar vacía";
+    }
+    setErrores({ ...errores, [name]: nuevoError });
   }
 
   const handleRegistro = async () => {
-    // Validaciones
-    if (evento.nombre.length < 3) {
-      alert("El nombre del evento debe tener al menos 3 caracteres");
-      return;
-    }
-    if (evento.costo <= 0 || evento.costo > 100000000) {
-      alert("El costo del evento debe estar entre 1 y 100000000");
-      return;
-    }
-    if (evento.tipo === "" || evento.tipo === "Seleccione el Tipo de Evento") {
-      alert("Debe seleccionar un tipo de evento");
-      return;
-    }
-    if (evento.descripcion === "") {
-      alert("La descripción del evento no puede estar vacía");
-      return;
-    }
-    if (evento.fecha === "") {
-      alert("La fecha del evento no puede estar vacía");
+    const todosLosErrores = {
+      nombre: evento.nombre.length < 3 ? "El nombre debe tener al menos 3 caracteres" : "",
+      costo: (evento.costo <= 0 || evento.costo > 100000000) ? "El costo debe estar entre 1 y 100000000" : "",
+      tipo: (evento.tipo === "" || evento.tipo === "Seleccione el Tipo de Evento") ? "Debe seleccionar un tipo de evento" : "",
+      descripcion: evento.descripcion === "" ? "La descripción no puede estar vacía" : "",
+      fecha: evento.fecha === "" ? "La fecha no puede estar vacía" : ""
+    };
+    setErrores(todosLosErrores);
+    
+    const hayErrores = Object.values(todosLosErrores).some(error => error !== "");
+    if (hayErrores) {
+      alert("Por favor corrija los errores antes de continuar");
       return;
     }
 
     try {
       if (editando && eventoEditandoId) {
-        // Actualizar evento existente
         await actualizarEvento(eventoEditandoId, evento);
         alert("Evento actualizado correctamente");
         setEditando(false);
         setEventoEditandoId(null);
       } else {
-        // Registrar nuevo evento
         await registroEvento(evento);
         alert("Evento registrado en Firebase");
       }
       
       setEvento(initialStateEvento);
-      await fetchEventos(); // Recargar la lista de eventos
+      setErrores({});
+      await fetchEventos();
     } catch (error) {
       alert(editando ? "Error al actualizar el evento" : "Error al registrar el evento en Firebase");
       console.error(error);
@@ -122,15 +134,28 @@ export default function Home() {
     });
     setEditando(true);
     setEventoEditandoId(eventoAEditar.id || null);
+    setErrores({});
   }
 
   const handleCancelarEdicion = () => {
     setEvento(initialStateEvento);
     setEditando(false);
     setEventoEditandoId(null);
+    setErrores({});
   }
 
-
+  const handleEliminar = async (id: string | undefined) => {
+    if (!id) return;
+    if (!window.confirm("¿Estás seguro de que quieres eliminar este evento?")) return;
+    try {
+      await eliminarEvento(id);
+      alert("Evento eliminado correctamente");
+      await fetchEventos();
+    } catch (error) {
+      alert("Error al eliminar el evento");
+      console.error(error);
+    }
+  }
 
   return (
     <div>
@@ -145,7 +170,8 @@ export default function Home() {
           value={evento.nombre}
           onChange={(e) => handleEvento(e.currentTarget.name, e.currentTarget.value)}
         /><br />
-        <span></span>
+        <span style={{color: 'red'}}>{errores.nombre}</span>
+        <br />
 
         <label>Costo del Evento </label><br />
         <input 
@@ -157,7 +183,8 @@ export default function Home() {
           value={evento.costo}
           onChange={(e) => handleEvento(e.currentTarget.name, e.currentTarget.value)}
         /><br />
-        <span></span>
+        <span style={{color: 'red'}}>{errores.costo}</span>
+        <br />
 
         <label>Tipo de Evento</label><br />
         <select 
@@ -173,7 +200,8 @@ export default function Home() {
           <option value="Cumpleaños">Cumpleaños</option>
           <option value="Baby Shower">Baby Shower</option>
         </select><br />
-        <span></span>
+        <span style={{color: 'red'}}>{errores.tipo}</span>
+        <br />
 
         <label>Descripcion del Evento</label><br />
         <textarea 
@@ -181,7 +209,8 @@ export default function Home() {
           value={evento.descripcion}
           onChange={(e) => handleEvento(e.currentTarget.name, e.currentTarget.value)}
         ></textarea>
-        <span></span>
+        <br />
+        <span style={{color: 'red'}}>{errores.descripcion}</span>
         <br />
 
         <label>Fecha del Evento</label><br />
@@ -194,8 +223,8 @@ export default function Home() {
           value={evento.fecha}
           onChange={(e) => handleEvento(e.currentTarget.name, e.currentTarget.value)}
         /><br />
-        <span></span>
-
+        <span style={{color: 'red'}}>{errores.fecha}</span>
+        <br />
         <button type="button" onClick={handleRegistro}>
           {editando ? 'Actualizar Evento' : 'Registrar Evento'}
         </button>
@@ -239,16 +268,13 @@ export default function Home() {
                 <td>{e.fecha}</td>
                 <td>
                   <button onClick={() => handleEditar(e)}>Editar</button>
+                  <button onClick={() => handleEliminar(e.id)}>Eliminar</button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       )}
-      
-      <button onClick={fetchEventos} disabled={loading}>
-        {loading ? 'Cargando...' : 'Recargar'}
-      </button>
     </div>
   );
 }

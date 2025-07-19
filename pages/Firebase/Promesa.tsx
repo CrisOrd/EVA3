@@ -1,4 +1,4 @@
-import { addDoc, collection, doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { addDoc, collection, doc, updateDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "./Conexion";
 
 export const registroEvento = async (evento: {
@@ -15,7 +15,7 @@ export const registroEvento = async (evento: {
       tipoEvento: evento.tipo,
       descripcionEvento: evento.descripcion,
       fechaEvento: evento.fecha,
-      timestamp: serverTimestamp()
+      timestamp: serverTimestamp() 
     });
     console.log("Document written with ID: ", docRef.id);
     return docRef;
@@ -40,11 +40,21 @@ export const actualizarEvento = async (id: string, evento: {
       tipoEvento: evento.tipo,
       descripcionEvento: evento.descripcion,
       fechaEvento: evento.fecha,
-      timestamp: serverTimestamp() // Actualizar timestamp
+      timestamp: serverTimestamp() 
     });
     console.log("Document updated with ID: ", id);
   } catch (error) {
     console.error("Error updating document: ", error);
+    throw error;
+  }
+};
+
+export const eliminarEvento = async (id: string) => {
+  try {
+    await deleteDoc(doc(db, "Eventos", id));
+    console.log("Document deleted with ID: ", id);
+  } catch (error) {
+    console.error("Error deleting document: ", error);
     throw error;
   }
 };

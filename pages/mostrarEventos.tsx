@@ -2,6 +2,7 @@ import { db } from "./Firebase/Conexion"
 import React, { useEffect, useState } from 'react'
 import { Evento } from './Interfaces/IEvento'
 import { collection, getDocs, query, orderBy } from "firebase/firestore"
+import { eliminarEvento } from "./Firebase/Promesa"
 
 interface Props {
   saludo: string,
@@ -61,6 +62,20 @@ export const MostrarEventos = (props: Props) => {
     props.editarEvento(index)
   }
 
+  const handleEliminar = async (id: string | undefined) => {
+    if (!id) return;
+    if (!window.confirm("¿Estás seguro de que quieres eliminar este evento?")) return;
+    
+    try {
+      await eliminarEvento(id)
+      alert("Evento eliminado correctamente")
+      await fetchEventos() 
+    } catch (error) {
+      alert("Error al eliminar el evento")
+      console.error(error)
+    }
+  }
+
   if (loading) {
     return (
       <div>
@@ -110,6 +125,9 @@ export const MostrarEventos = (props: Props) => {
                   <td>
                     <button onClick={() => handleEditar(e, index)}>
                       Editar Evento
+                    </button>
+                    <button onClick={() => handleEliminar(e.id)}>
+                      Eliminar Evento
                     </button>
                   </td>
                 </tr>
